@@ -1,0 +1,43 @@
+0 1 abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_
+1 1 abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_0123456789
+
+0 2 0123456789
+2 2 0123456789
+2 3 .
+3 3 0123456789
+
+0 4 +
+4 63 +=
+
+0 5 -
+5 63 -=>
+
+0 6 *%
+6 63 =
+
+0 7 / 
+7 63 =
+
+0 8 =
+8 63 =
+
+0 9 !
+9 63 =
+
+0 10 <>
+10 63 <>=
+
+0 11 ?:
+
+0 13 .
+0 14 &
+
+0 20 "
+20 20 abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUV_0123456789
+20 63 "
+
+0 21 ;{},
+0 22 ()
+0 23 []
+
+0 24 #

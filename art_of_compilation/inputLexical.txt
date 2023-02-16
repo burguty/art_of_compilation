@@ -1,0 +1,8 @@
+void func(array int vector, int var) {
+	out << aboba;
+	int nhn() {}
+}
+
+int main() {
+	return  0;
+}
