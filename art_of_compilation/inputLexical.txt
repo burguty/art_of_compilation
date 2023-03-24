@@ -1,8 +1,17 @@
-void func(array int vector, int var) {
-	out << aboba;
-	int nhn() {}
+
+void f(int a) {
+	return;
 }
 
+
 int main() {
-	return  0;
+	array int a[10];
+	int c = 1;
+	int f;
+	f = 0;
+	f();
+	while (true) {
+		int a;
+	}
+	return 0;
 }

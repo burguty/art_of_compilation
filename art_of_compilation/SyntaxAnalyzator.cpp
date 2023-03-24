@@ -124,9 +124,7 @@ void SyntaxAnalyzator::Bool() {
 }
 
 void SyntaxAnalyzator::Name() {
-    char c = GetLex()[0];
-    if (GetType() == 2 && (c == '_' || c >= 'a' && c <= 'z' ||
-        c >= 'A' && c <= 'Z')) {
+    if (GetType() == 2) {
         Next();
     }
     else {
@@ -219,6 +217,12 @@ void SyntaxAnalyzator::InputParameters() {
     if (GetLex() == ">>") {
         Next();
         Name();
+        if (GetLex() == "[") {
+            Next();
+            Expression();
+            CheckLexeme("]");
+            Next();
+        }
         InputParameters();
     }
 }
@@ -229,6 +233,12 @@ void SyntaxAnalyzator::InputOperator() {
     CheckLexeme(">>");
     Next();
     Name();
+    if (GetLex() == "[") {
+        Next();
+        Expression();
+        CheckLexeme("]");
+        Next();
+    }
     InputParameters();
     CheckLexeme(";");
     Next();
@@ -237,13 +247,13 @@ void SyntaxAnalyzator::InputOperator() {
 void SyntaxAnalyzator::Array() {
     CheckLexeme("array");
     Next();
-    Variable();
+    Type();
+    Name();
     CheckLexeme("[");
     Next();
     Const();
     CheckLexeme("]");
     Next();
-    // обработка ';' ?
 }
 
 void SyntaxAnalyzator::Operation1() {
@@ -412,6 +422,17 @@ void SyntaxAnalyzator::StartAdding() {
     }
 }
 
+void SyntaxAnalyzator::AddingFunctionParameters() {
+    if (GetLex() == ")") {
+        Next();
+        return;
+    }
+    CheckLexeme(",");
+    Next();
+    Expression();
+    AddingFunctionParameters();
+}
+
 void SyntaxAnalyzator::Adding() {
     std::string str = GetLex();
     if (GetType() == 3 || GetLex() == "true" || GetLex() == "false" || GetLex() == "!") {
@@ -425,15 +446,22 @@ void SyntaxAnalyzator::Adding() {
             CheckLexeme("]");
             Next();
         }
+        else if (GetLex() == "(") {
+            Next();
+            if (GetLex() != ")") {
+                Expression();
+                AddingFunctionParameters();
+            }
+            else {
+                Next();
+            }
+        }
     }
     else if (GetLex() == "(") {
         Next();
         Expression();
         CheckLexeme(")");
         Next();
-    }
-    else if (GetLex() == "array") {
-        Array();
     }
     else {
         std::string error = "Error in adding! Got: ";
@@ -476,7 +504,12 @@ void SyntaxAnalyzator::DefinitionOperator() {
 void SyntaxAnalyzator::OutputOperatorParameters() {
     if (GetLex() == "<<") {
         Next();
-        Expression();
+        if (GetType() == 8) {
+            String();
+        }
+        else {
+            Expression();
+        }
         OutputOperatorParameters();
     }
 }
@@ -486,7 +519,12 @@ void SyntaxAnalyzator::OutputOperator() {
     Next();
     CheckLexeme("<<");
     Next();
-    Expression();
+    if (GetType() == 8) {
+        String();
+    }
+    else {
+        Expression();
+    }
     OutputOperatorParameters();
     CheckLexeme(";");
     Next();
@@ -720,29 +758,44 @@ void SyntaxAnalyzator::ProgramParameters() {
     }
     else {
         if (GetLex() == "array") {
-            ++ind;
-        }
-        Type();
-        if (GetLex() == "main") {
-            return;
-        }
-        Name();
-        if (GetLex() == "(") {
-            ind -= 2;
-            Function();
-            ProgramParameters();
-        }
-        else if (GetLex() == "[" || GetLex() == "," || GetLex() == ";" || GetLex() == "=") {
-            if (GetLex() == "[") {
-                ind -= 3;
-            }
-            else {
-                ind -= 2;
-            }
             Definition();
-            CheckLexeme(";");
-            Next();
             ProgramParameters();
+        }
+        else {
+            if (GetLex() == "int") {
+                ++ind;
+                if (GetLex() == "main") {
+                    return;
+                }
+                --ind;
+            }
+            Type();
+            Name();
+            --ind;
+            if (GetLex() == "main") {
+                --ind;
+                CheckLexeme("int");
+                ++ind;
+            }
+            ++ind;
+
+            if (GetLex() == "(") {
+                ind -= 2;
+                Function();
+                ProgramParameters();
+            }
+            else if (GetLex() == "[" || GetLex() == "," || GetLex() == ";" || GetLex() == "=") {
+                if (GetLex() == "[") {
+                    ind -= 3;
+                }
+                else {
+                    ind -= 2;
+                }
+                Definition();
+                CheckLexeme(";");
+                Next();
+                ProgramParameters();
+            }
         }
     }
 }

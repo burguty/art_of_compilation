@@ -45,6 +45,7 @@ public:
     void Sign(); //
     void Bool(); //
     void StartAdding(); // нач объявление
+    void AddingFunctionParameters(); //
     void Adding(); // объявление
     void Name(); // 
     void Priority0(); //
@@ -70,7 +71,7 @@ public:
     void Increment(); //
     void String(); //
     void InputParameters(); //
-protected:
+private:
     std::vector<Lexeme> lexemes_;
 };
 

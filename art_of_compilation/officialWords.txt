@@ -10,4 +10,4 @@ continue   if   signed   virtual
 default   inline   sizeof   void
 delete   int   static   volatile
 do   long   struct   while
-elif string array
+elif string array out in

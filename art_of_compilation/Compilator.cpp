@@ -10,5 +10,7 @@ bool Compilator::Check() {
         return false;
     }
     syntax_analyzator_.SetLexemes(lexemes);
-    return syntax_analyzator_.Check();
+    semantics_analyzator_.SetLexemes(lexemes);
+    if (syntax_analyzator_.Check() == false) return false;
+    return semantics_analyzator_.Check();
 }

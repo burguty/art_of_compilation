@@ -143,12 +143,14 @@
     <ClCompile Include="Lexeme.cpp" />
     <ClCompile Include="LexicalAnalyzator.cpp" />
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="SemanticsAnalyzator.cpp" />
     <ClCompile Include="SyntaxAnalyzator.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Compilator.h" />
     <ClInclude Include="Lexeme.h" />
     <ClInclude Include="LexicalAnalyzator.h" />
+    <ClInclude Include="SemanticsAnalyzator.h" />
     <ClInclude Include="SyntaxAnalyzator.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
