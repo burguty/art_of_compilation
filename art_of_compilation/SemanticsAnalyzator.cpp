@@ -356,6 +356,7 @@ void SemanticsAnalyzator::CheckUno(std::stack<TypeControl>& type_control) {
             throw error;
             return;
         }
+        type_control.push({b.type, "", a.line});
         return;
     }
     if (a.id == "+" || a.id == "-") {
@@ -365,6 +366,7 @@ void SemanticsAnalyzator::CheckUno(std::stack<TypeControl>& type_control) {
             throw error;
             return;
         }
+        type_control.push({ b.type, "", a.line });
         return;
     }
     if (a.id == "!") {
@@ -374,6 +376,7 @@ void SemanticsAnalyzator::CheckUno(std::stack<TypeControl>& type_control) {
             throw error;
             return;
         }
+        type_control.push({ b.type, "", a.line });
         return;
     }
 }
@@ -383,11 +386,13 @@ void SemanticsAnalyzator::Priority0(
     std::string str = lexemes_[i].GetText();
     if (str == "+" || str == "-") {
         type_control.push({ "", str, lexemes_[i].GetNum() });
+        ++i;
         Adding(type_control, i);
         CheckUno(type_control);
     }
     else if (str == "++" || str == "--") {
         type_control.push({ "", str, lexemes_[i].GetNum() });
+        ++i;
         Adding(type_control, i);
         CheckUno(type_control);
     }
@@ -598,7 +603,6 @@ void SemanticsAnalyzator::AddingFunctionParameters(
     ++ind_par;
     std::stack<TypeControl> type_control_parameter;
     Expression(type_control_parameter, i);
-    std::cout << '-' << lexemes_[i].GetText() << '\n';
     if (!(ind_par >= 0 && ind_par < f.type_par.size())) {
         error = "Wrong amount of parameters! Function: ";
         error += f.id;
@@ -852,11 +856,49 @@ bool SemanticsAnalyzator::Check() {
                 gap_cnt++;
                 NewVarScope();
                 i += 2; // сдвиг на первое выражение
-                std::stack<TypeControl> type_control;
-                Expression(type_control, i);
+                auto type = lexemes_[i].GetText();
+                if (type == "int" || type == "double" || type == "bool") {
+                    ++i;
+                    lex = lexemes_[i].GetText();
+                    int line = lexemes_[i].GetNum();
+                    if (lexemes_[i + 1].GetText() == "=") {
+                        // произведено ли повторное создание переменной
+
+                        if (!FindVar(var_tid, type, lex, true, lexemes_[i].GetNum())) break;
+                        if (!FindFunc(func_tid, type, lex, {}, lexemes_[i].GetNum())) break;
+                        // обработка правильности выражения после равно
+                        i += 2;
+                        std::stack<TypeControl> type_control;
+                        Expression(type_control, i);
+                        if (type_control.top().type != type &&
+                            (type != "double" || type_control.top().type != "int")) {
+                            error = "Type of lvalue doesn't equals type of rvalue: ";
+                            error += lex;
+                            error += " != ";
+                            error += type_control.top().type;
+                            error += " Line: ";
+                            error += std::to_string(line);
+                            throw error;
+                            break;
+                        }
+                        // добавление переменной в дерево
+                        AddVar(lex, type, true);
+                    }
+                    // без инициализации 
+                    else {
+                        // произведено ли повторное создание переменной
+                        if (!FindVar(var_tid, type, lex, false, lexemes_[i].GetNum())) break;
+                        // добавление переменной в дерево
+                        AddVar(lex, type, false);
+                    }
+                }
+                else {
+                    std::stack<TypeControl> type_control;
+                    Expression(type_control, i);
+                }
                 ++i; // сдвиг потому что ;
                 auto line = lexemes_[i].GetNum();
-                if (!type_control.empty()) type_control.pop();
+                std::stack<TypeControl> type_control;
                 Expression(type_control, i);
                 if (!type_control.empty() && type_control.top().type != "bool") {
                     error = "Expression must be bool! Line: ";
@@ -903,6 +945,11 @@ bool SemanticsAnalyzator::Check() {
                     error += std::to_string(line);
                     throw error;
                     break;
+                }
+            }
+            else if (lex == "else") {
+                if (lexemes_[i + 1].GetText() == "{") {
+                    gap_cnt++;
                 }
             }
             else if (lex == "array") {

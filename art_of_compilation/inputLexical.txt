@@ -1,17 +1,13 @@
 
-void f(int a) {
-	return;
-}
-
-
 int main() {
-	array int a[10];
-	int c = 1;
-	int f;
-	f = 0;
-	f();
-	while (true) {
-		int a;
+	if (4 < 5 + 7) {
+		out << 78 << "\n";
+	}
+	else if (true) {
+		int a = 5;
+	}
+	else {
+		int b = 90;
 	}
 	return 0;
 }

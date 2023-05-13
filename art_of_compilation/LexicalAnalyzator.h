@@ -1,8 +1,6 @@
 #pragma once
 #include "Lexeme.h"
-#include <fstream>
 #include <set>
-#include <vector>
 
 class LexicalAnalyzator {
 public:

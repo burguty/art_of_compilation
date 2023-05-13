@@ -1,8 +1,5 @@
 #pragma once
 #include "Lexeme.h"
-#include <iostream>
-#include <string>
-#include <vector>
 #include <stack>
 
 struct Variable {

@@ -4,10 +4,10 @@ break   enum   private   this
 case   extern   protected   throw
 catch   float   public   try
 char   for   register   typedef
-class   friend   return   union
+class   friend   return union
 const   goto   short   unsigned
 continue   if   signed   virtual
 default   inline   sizeof   void
 delete   int   static   volatile
 do   long   struct   while
-elif string array out in
+elif string array out in condition_goto

@@ -1,7 +1,22 @@
-#include "SyntaxAnalyzator.h"
+#include "Poliz.h"
 
-// SyntaxAnalyzator 
-void SyntaxAnalyzator::GetLexemes(std::string file_path) {
+// Poliz 
+
+Poliz::Poliz() {
+    priority_table["unar+"] = 0, priority_table["unar-"] = 0, priority_table["++"] = 0, priority_table["--"] = 0;
+    priority_table["*"] = 1, priority_table["/"] = 1, priority_table["%"] = 1;
+    priority_table["+"] = 2, priority_table["-"] = 2;
+    priority_table["<"] = 3, priority_table[">"] = 3, priority_table["<="] = 3, priority_table[">="] = 3;
+    priority_table["=="] = 4, priority_table["<>"] = 4;
+    priority_table["&"] = 5;
+    priority_table["|"] = 6;
+    priority_table["^"] = 7;
+    priority_table["&&"] = 8;
+    priority_table["||"] = 9;
+    priority_table["="] = 10;
+}
+
+void Poliz::GetLexemes(std::string file_path) {
     std::ifstream is;
     is.open(file_path);
     std::string text;
@@ -14,46 +29,81 @@ void SyntaxAnalyzator::GetLexemes(std::string file_path) {
     is.close();
 }
 
-void SyntaxAnalyzator::SetLexemes(std::vector<Lexeme> vec) {
+element MakeOperand(std::string s, int line) {
+    return { s, false, 0, line };
+}
+
+element MakeGoTo(int pos) {
+    return { std::string("goto"), true, pos, 0 };
+}
+
+element MakeConditionGoTo(int pos) {
+    return { std::string("condition_goto"), true, pos, 0 };
+}
+
+element MakeOperation(std::string s) {
+    return { s, true, 0, 0 };
+}
+
+int Poliz::GetLastFree() {
+    return poliz_.size() - 1;
+}
+
+
+void Poliz::TakeOperations(std::string oper) {
+    while (!stack_oper_.empty() && stack_oper_.top() != "expr_start" &&
+        (oper == "=" && priority_table[stack_oper_.top()] < priority_table[oper] ||
+            oper != "=" && priority_table[stack_oper_.top()] <= priority_table[oper])) {
+        poliz_.push_back(MakeOperation(stack_oper_.top()));
+        stack_oper_.pop();
+    }
+}
+
+
+std::vector<element> Poliz::GetPoliz() {
+    return poliz_;
+}
+
+void Poliz::SetLexemes(std::vector<Lexeme> vec) {
     lexemes_ = vec;
 }
 
-void SyntaxAnalyzator::Show() {
+void Poliz::Show() {
     for (auto tmp : lexemes_) {
         tmp.Show();
     }
 }
 
-long long ind;
+long long ind1;
 
-std::string SyntaxAnalyzator::GetLex() {
+std::string Poliz::GetLex() {
     std::string str = "Lexeme was\'t found!";
-    if (!(ind >= 0LL && ind < lexemes_.size())) {
+    if (!(ind1 >= 0LL && ind1 < lexemes_.size())) {
         throw str;
         return "";
     }
-    return lexemes_[ind].GetText();
+    return lexemes_[ind1].GetText();
 }
 
-int SyntaxAnalyzator::GetType() {
+int Poliz::GetType() {
     std::string str = "Lexeme wasn\'t found!";
-    if (!(ind >= 0LL && ind < lexemes_.size())) {
+    if (!(ind1 >= 0LL && ind1 < lexemes_.size())) {
         throw str;
         return -1;
     }
-    return lexemes_[ind].GetType();
+    return lexemes_[ind1].GetType();
 }
 
-std::string SyntaxAnalyzator::GetNum() {
+std::string Poliz::GetNum() {
     std::string str = "Lexeme wasn\'t found!";
-    if (!(ind >= 0LL && ind < lexemes_.size())) {
+    if (!(ind1 >= 0LL && ind1 < lexemes_.size())) {
         throw str;
         return "-1";
     }
-    return std::to_string(lexemes_[ind].GetNum());
+    return std::to_string(lexemes_[ind1].GetNum());
 }
 
-void SyntaxAnalyzator::CheckLexeme(std::string str1) {
+void Poliz::CheckLexeme(std::string str1) {
     if (str1 != GetLex()) {
         std::string str = "Expected: ";
         str += "'";
@@ -69,88 +119,50 @@ void SyntaxAnalyzator::CheckLexeme(std::string str1) {
     }
 }
 
-void SyntaxAnalyzator::Next() {
-    ind++;
+void Poliz::Next() {
+    ind1++;
 }
 
-void SyntaxAnalyzator::Const() {
-    if (GetType() == 3) {
-        Next();
-    }
-    else {
-        std::string error = "Isn\'t const: ";
-        error += GetLex();
-        error += " Line: ";
-        error += GetNum();
-        throw error;
-    }
+void Poliz::Const() {
+    poliz_.push_back(MakeOperand(GetLex(), lexemes_[ind1].GetNum()));
+    Next();
 }
 
-void SyntaxAnalyzator::String() {
-    if (GetType() == 8) {
-        Next();
-        return;
-    }
-    std::string str = "Isn\'t string: ";
-    str += GetLex();
-    str += " Line: ";
-    str += GetNum();
-    throw str;
+void Poliz::String() {
+    poliz_.push_back(MakeOperand(GetLex(), lexemes_[ind1].GetNum()));
+    Next();
 }
 
-void SyntaxAnalyzator::Sign() {
-    if (GetLex() != "+" && GetLex() != "-") {
-        std::string str = "Expected: '+' or '-' Got: ";
-        str += GetLex();
-        str += " Line: ";
-        str += GetNum();
-        throw str;
+void Poliz::Sign() {
+    if (GetLex() == "+") {
+        TakeOperations("unar+");
+        stack_oper_.push("unar+");
+    }
+    else if (GetLex() == "-") {
+        TakeOperations("unar-");
+        stack_oper_.push("unar-");
     }
     Next();
 }
 
-void SyntaxAnalyzator::Bool() {
-    auto lex = GetLex();
-    if (lex == "true" || lex == "false") {
-        Next();
-    }
-    else {
-        std::string str = "Expected: \"true\" or \"false\" Got: ";
-        str += GetLex();
-        str += " Line: ";
-        str += GetNum();
-        throw str;
-    }
+void Poliz::Bool() {
+    poliz_.push_back(MakeOperand(GetLex(), lexemes_[ind1].GetNum()));
+    Next();
 }
 
-void SyntaxAnalyzator::Name() {
-    if (GetType() == 2) {
-        Next();
-    }
-    else {
-        std::string str = "Isn\'t name: ";
-        str += GetLex();
-        str += " Line: ";
-        str += GetNum();
-        throw str;
-    }
+void Poliz::Name() {
+    poliz_.push_back(MakeOperand(GetLex(), lexemes_[ind1].GetNum()));
+    Next();
 }
 
-void SyntaxAnalyzator::Type() {
+void Poliz::Type() {
     auto lex = GetLex();
     if (lex == "int" || lex == "double" || lex == "bool") {
         Next();
     }
-    else {
-        std::string str = "Expected: \"int\", \"double\" or \"bool\" Got: ";
-        str += GetLex();
-        str += " Line: ";
-        str += GetNum();
-        throw str;
-    }
 }
 
-void SyntaxAnalyzator::FunctionParameters() {
+void Poliz::FunctionParameters() {
     if (GetLex() == ")") {
         Next();
         return;
@@ -160,18 +172,22 @@ void SyntaxAnalyzator::FunctionParameters() {
     if (GetLex() == "array") {
         Next();
     }
-    Type();
-    Name();
+    // Type();
+    Next();
+    // Name();
+    Next();
     FunctionParameters();
 }
 
-void SyntaxAnalyzator::Function() {
+void Poliz::Function() {
+    // тут надо запихивать функцию в реестр функций с соответсвующими параметрами
     if (GetLex() == "void") {
         Next();
         Name();
     }
     else {
-        Type();
+        // Type();
+        Next();
         Name();
     }
     CheckLexeme("(");
@@ -183,37 +199,36 @@ void SyntaxAnalyzator::Function() {
         if (GetLex() == "array") {
             Next();
         }
-        Type();
-        Name();
+        // Type();
+        Next();
+        //Name();
+        Next();
         FunctionParameters();
     }
     CompoundOperator();
+    poliz_.push_back(MakeOperation("end_function"));
 }
 
-void SyntaxAnalyzator::Increment() {
+void Poliz::Increment() {
     auto lex = GetLex();
-    if (lex == "++" || lex == "--") {
-        Next();
-    }
-    else {
-        std::string error = "Expected: \'++\' or \'--\' Got: ";
-        error += GetLex();
-        error += " Line: ";
-        error += GetNum();
-        throw error;
-    }
+    TakeOperations(lex);
+    stack_oper_.push(lex);
+    Next();
 }
 
-void SyntaxAnalyzator::Variable() {
-    Type();
+void Poliz::Variable() {
+    auto type = GetLex();
+    Next();
     Name();
+    poliz_.push_back(MakeOperation(type));
     if (GetLex() == "=") {
         Next();
         Expression();
+        poliz_.push_back(MakeOperation("="));
     }
 }
 
-void SyntaxAnalyzator::InputParameters() {
+void Poliz::InputParameters() {
     if (GetLex() == ">>") {
         Next();
         Name();
@@ -222,14 +237,16 @@ void SyntaxAnalyzator::InputParameters() {
             Expression();
             CheckLexeme("]");
             Next();
+            poliz_.push_back(MakeOperation("take_element_array"));
         }
         InputParameters();
     }
 }
 
-void SyntaxAnalyzator::InputOperator() {
+void Poliz::InputOperator() {
     CheckLexeme("in");
     Next();
+    poliz_.push_back(MakeOperation("in_start"));
     CheckLexeme(">>");
     Next();
     Name();
@@ -238,73 +255,58 @@ void SyntaxAnalyzator::InputOperator() {
         Expression();
         CheckLexeme("]");
         Next();
+        poliz_.push_back(MakeOperation("take_element_array"));
     }
     InputParameters();
     CheckLexeme(";");
     Next();
+    poliz_.push_back(MakeOperation("in"));
 }
 
-void SyntaxAnalyzator::Array() {
+void Poliz::Array() {
     CheckLexeme("array");
     Next();
-    Type();
+    auto type = GetLex();
+    poliz_.push_back(MakeOperand(type, lexemes_[ind1].GetNum()));
+    Next();
     Name();
     CheckLexeme("[");
     Next();
     Const();
     CheckLexeme("]");
     Next();
+    poliz_.push_back(MakeOperation("array"));
 }
 
-void SyntaxAnalyzator::Operation1() {
+void Poliz::Operation1() {
     auto lex = GetLex();
-    if (lex != "*" && lex != "/" && lex != "%") {
-        std::string error = "Expected: \'*\', \'/\' or \'%\' Got: ";
-        error += lex;
-        error += " Line: ";
-        error += GetNum();
-        throw error;
-    }
+    TakeOperations(lex);
+    stack_oper_.push(lex);
     Next();
 }
 
-void SyntaxAnalyzator::Operation2() {
+void Poliz::Operation2() {
     auto lex = GetLex();
-    if (lex != "+" && lex != "-") {
-        std::string error = "Expected: \'+\' or \'-\' Got: ";
-        error += lex;
-        error += " Line: ";
-        error += GetNum();
-        throw error;
-    }
+    TakeOperations(lex);
+    stack_oper_.push(lex);
     Next();
 }
 
-void SyntaxAnalyzator::Operation3() {
+void Poliz::Operation3() {
     auto lex = GetLex();
-    if (lex != "<" && lex != ">" && lex != "<=" && lex != ">=") {
-        std::string error = "Expected: \'<\', \'>\', \'<=\' or \'>=\' Got: ";
-        error += lex;
-        error += " Line: ";
-        error += GetNum();
-        throw error;
-    }
+    TakeOperations(lex);
+    stack_oper_.push(lex);
     Next();
 }
 
-void SyntaxAnalyzator::Operation4() {
+void Poliz::Operation4() {
     auto lex = GetLex();
-    if (lex != "==" && lex != "<>") {
-        std::string str = "Expected: \'==\' or \'<>\' Got: ";
-        str += GetLex();
-        str += " Line: ";
-        str += GetNum();
-        throw str;
-    }
+    TakeOperations(lex);
+    stack_oper_.push(lex);
     Next();
 }
 
-void SyntaxAnalyzator::Priority0() {
+void Poliz::Priority0() {
     std::string str = GetLex();
     if (GetLex() == "+" || GetLex() == "-") {
         Sign();
@@ -312,20 +314,14 @@ void SyntaxAnalyzator::Priority0() {
     }
     else if (GetLex() == "++" || GetLex() == "--") {
         Increment();
-        Name();
-        if (GetLex() == "[") {
-            Next();
-            Expression();
-            CheckLexeme("]");
-            Next();
-        }
+        Adding();
     }
     else {
         Adding();
     }
 }
 
-void SyntaxAnalyzator::Priority1() {
+void Poliz::Priority1() {
     Priority0();
     if (GetLex() == "*" || GetLex() == "/" || GetLex() == "%") {
         Operation1();
@@ -333,7 +329,7 @@ void SyntaxAnalyzator::Priority1() {
     }
 }
 
-void SyntaxAnalyzator::Priority2() {
+void Poliz::Priority2() {
     Priority1();
     if (GetLex() == "+" || GetLex() == "-") {
         Operation2();
@@ -341,7 +337,7 @@ void SyntaxAnalyzator::Priority2() {
     }
 }
 
-void SyntaxAnalyzator::Priority3() {
+void Poliz::Priority3() {
     Priority2();
     if (GetLex() == "<" || GetLex() == ">" || GetLex() == "<=" || GetLex() == ">=") {
         Operation3();
@@ -349,7 +345,7 @@ void SyntaxAnalyzator::Priority3() {
     }
 }
 
-void SyntaxAnalyzator::Priority4() {
+void Poliz::Priority4() {
     Priority3();
     if (GetLex() == "==" || GetLex() == "<>") {
         Operation4();
@@ -357,59 +353,77 @@ void SyntaxAnalyzator::Priority4() {
     }
 }
 
-void SyntaxAnalyzator::Priority5() {
+void Poliz::Priority5() {
     Priority4();
     if (GetLex() == "&") {
+        TakeOperations("&");
+        stack_oper_.push("&");
         Next();
         Priority5();
     }
 }
 
-void SyntaxAnalyzator::Priority6() {
+void Poliz::Priority6() {
     Priority5();
     if (GetLex() == "|") {
+        TakeOperations("|");
+        stack_oper_.push("|");
         Next();
         Priority6();
     }
 }
 
-void SyntaxAnalyzator::Priority7() {
+void Poliz::Priority7() {
     Priority6();
     if (GetLex() == "^") {
+        TakeOperations("^");
+        stack_oper_.push("^");
         Next();
         Priority7();
     }
 }
 
-void SyntaxAnalyzator::Priority8() {
+void Poliz::Priority8() {
     Priority7();
     if (GetLex() == "&&") {
+        TakeOperations("&&");
+        stack_oper_.push("&&");
         Next();
         Priority8();
     }
 }
 
-void SyntaxAnalyzator::Priority9() {
+void Poliz::Priority9() {
     Priority8();
     if (GetLex() == "||") {
+        TakeOperations("||");
+        stack_oper_.push("||");
         Next();
         Priority9();
     }
 }
 
-void SyntaxAnalyzator::Priority10() {
+void Poliz::Priority10() {
     Priority9();
     if (GetLex() == "=") {
+        TakeOperations("=");
+        stack_oper_.push("=");
         Next();
         Priority10();
     }
 }
 
-void SyntaxAnalyzator::Expression() {
+void Poliz::Expression() {
+    stack_oper_.push("expr_start");
     Priority10();
+    while (!stack_oper_.empty() && stack_oper_.top() != "expr_start") {
+        poliz_.push_back(MakeOperation(stack_oper_.top()));
+        stack_oper_.pop();
+    }
+    stack_oper_.pop();
 }
 
-void SyntaxAnalyzator::StartAdding() {
+void Poliz::StartAdding() {
     if (GetType() == 3) {
         Const();
     }
@@ -417,18 +431,13 @@ void SyntaxAnalyzator::StartAdding() {
         Bool();
     }
     else if (GetLex() == "!") {
+        stack_oper_.push("!");
         Next();
         Adding();
     }
-    else {
-        std::string str = "Empty adding!";
-        str += " Line: ";
-        str += GetNum();
-        throw str;
-    }
 }
 
-void SyntaxAnalyzator::AddingFunctionParameters() {
+void Poliz::AddingFunctionParameters() {
     if (GetLex() == ")") {
         Next();
         return;
@@ -439,18 +448,22 @@ void SyntaxAnalyzator::AddingFunctionParameters() {
     AddingFunctionParameters();
 }
 
-void SyntaxAnalyzator::Adding() {
+void Poliz::Adding() {
     std::string str = GetLex();
     if (GetType() == 3 || GetLex() == "true" || GetLex() == "false" || GetLex() == "!") {
         StartAdding();
     }
     else if (GetType() == 2) {
-        Name();
+        auto name = GetLex();
+        auto line = lexemes_[ind1].GetNum();
+        Next();
         if (GetLex() == "[") {
             Next();
+            poliz_.push_back(MakeOperand(name, line));
             Expression();
             CheckLexeme("]");
             Next();
+            poliz_.push_back(MakeOperation("take_element_array"));
         }
         else if (GetLex() == "(") {
             Next();
@@ -461,6 +474,11 @@ void SyntaxAnalyzator::Adding() {
             else {
                 Next();
             }
+            poliz_.push_back(MakeOperation(name));
+        }
+        else
+        {
+            poliz_.push_back(MakeOperand(name, line));
         }
     }
     else if (GetLex() == "(") {
@@ -471,7 +489,7 @@ void SyntaxAnalyzator::Adding() {
     }
 }
 
-void SyntaxAnalyzator::DefinitionParameters() {
+void Poliz::DefinitionParameters() {
     if (GetLex() == ",") {
         Next();
         if (GetLex() == "array") {
@@ -484,7 +502,7 @@ void SyntaxAnalyzator::DefinitionParameters() {
     }
 }
 
-void SyntaxAnalyzator::Definition() {
+void Poliz::Definition() {
     if (GetLex() == "array") {
         Array();
     }
@@ -494,13 +512,13 @@ void SyntaxAnalyzator::Definition() {
     DefinitionParameters();
 }
 
-void SyntaxAnalyzator::DefinitionOperator() {
+void Poliz::DefinitionOperator() {
     Definition();
     CheckLexeme(";");
     Next();
 }
 
-void SyntaxAnalyzator::OutputOperatorParameters() {
+void Poliz::OutputOperatorParameters() {
     if (GetLex() == "<<") {
         Next();
         if (GetType() == 8) {
@@ -513,9 +531,10 @@ void SyntaxAnalyzator::OutputOperatorParameters() {
     }
 }
 
-void SyntaxAnalyzator::OutputOperator() {
+void Poliz::OutputOperator() {
     CheckLexeme("out");
     Next();
+    poliz_.push_back(MakeOperation("out_start"));
     CheckLexeme("<<");
     Next();
     if (GetType() == 8) {
@@ -527,49 +546,49 @@ void SyntaxAnalyzator::OutputOperator() {
     OutputOperatorParameters();
     CheckLexeme(";");
     Next();
+    poliz_.push_back(MakeOperation("out"));
 }
 
-void SyntaxAnalyzator::ReturnOperator() {
+void Poliz::ReturnOperator() {
     CheckLexeme("return");
     Next();
     auto lex = GetLex();
     if (!lex.empty() && (lex == "+" || lex == "-" ||
-        lex >= "0" && lex <= "9" || lex == "true" || lex == "false" ||
-        lex == "!" || lex == "++" || lex == "--" || lex == "(" || lex == "array")) {
-        ExpressionOperator();
-    }
-    else if (GetType() == 2) {
+        GetType() == 3 || lex == "true" || lex == "false" ||
+        lex == "!" || lex == "++" || lex == "--" || lex == "(" || lex == "array" || GetType() == 2)) {
+        Expression();
+        poliz_.push_back(MakeOperation("return"));
+        CheckLexeme(";");
         Next();
-        if (ind >= lexemes_.size()) {
-            --ind;
-            ExpressionOperator();
-        }
-        else if (GetLex() == "(") {
-            --ind;
-            FunctionCallOperator();
-        }
-        else {
-            --ind;
-            ExpressionOperator();
-        }
     }
     else {
         CheckLexeme(";");
         Next();
+        poliz_.push_back(MakeOperation("return_void"));
     }
 }
 
-void SyntaxAnalyzator::ExpressionOperator() {
+void Poliz::ExpressionOperator() {
     Expression();
     CheckLexeme(";");
     Next();
+    poliz_.push_back(MakeOperation(";"));
 }
 
-void SyntaxAnalyzator::ElseIf() {
+std::vector<int> positions_for_goto;
+
+void Poliz::ElseIf() {
     if (GetLex() == "else") {
         Next();
         if (GetLex() != "if") {
             CompoundOperator();
+            poliz_.push_back({});
+            positions_for_goto.push_back(GetLastFree());
+
+            for (int pos : positions_for_goto) {
+                poliz_[pos] = MakeGoTo(GetLastFree() + 1);
+            }
+            positions_for_goto.clear();
             return;
         }
         Next();
@@ -578,12 +597,22 @@ void SyntaxAnalyzator::ElseIf() {
         Expression();
         CheckLexeme(")");
         Next();
+        poliz_.push_back({});
+        int pos_goto = GetLastFree();
         CompoundOperator();
+        poliz_.push_back({});
+        positions_for_goto.push_back(GetLastFree());
+        poliz_[pos_goto] = MakeConditionGoTo(GetLastFree() + 1);
         ElseIf();
     }
+    for (int pos : positions_for_goto) {
+        poliz_[pos] = MakeGoTo(GetLastFree() + 1);
+    }
+    positions_for_goto.clear();
 }
 
-void SyntaxAnalyzator::IfOperator() {
+void Poliz::IfOperator() {
+    positions_for_goto.clear();
     CheckLexeme("if");
     Next();
     CheckLexeme("(");
@@ -591,11 +620,16 @@ void SyntaxAnalyzator::IfOperator() {
     Expression();
     CheckLexeme(")");
     Next();
+    poliz_.push_back({});
+    int pos_goto = GetLastFree();
     CompoundOperator();
+    poliz_.push_back({});
+    positions_for_goto.push_back(GetLastFree());
+    poliz_[pos_goto] = MakeConditionGoTo(GetLastFree() + 1);
     ElseIf();
 }
 
-void SyntaxAnalyzator::FunctionCallOperatorParameters() {
+void Poliz::FunctionCallOperatorParameters() {
     if (GetLex() == ",") {
         Next();
         Expression();
@@ -603,8 +637,10 @@ void SyntaxAnalyzator::FunctionCallOperatorParameters() {
     }
 }
 
-void SyntaxAnalyzator::FunctionCallOperator() {
-    Name();
+void Poliz::FunctionCallOperator() {
+    //Name();
+    auto name = GetLex();
+    Next();
     CheckLexeme("(");
     Next();
     if (GetLex() != ")") {
@@ -613,61 +649,83 @@ void SyntaxAnalyzator::FunctionCallOperator() {
         CheckLexeme(")");
         Next();
     }
+    poliz_.push_back(MakeOperation(name));
     CheckLexeme(";");
     Next();
 }
 
-void SyntaxAnalyzator::ForOperator() {
+void Poliz::ForOperator() {
     CheckLexeme("for");
     Next();
     CheckLexeme("(");
     Next();
     if (GetLex() == "int" || GetLex() == "double" || GetLex() == "bool") {
-        Type();
+        auto type = GetLex();
+        Next();
         Name();
+        poliz_.push_back(MakeOperation(type));
         CheckLexeme("=");
         Next();
         Expression();
+        poliz_.push_back(MakeOperation("="));
     }
     else if (GetLex() == ";") {
 
     }
     else {
         Expression();
+        poliz_.push_back(MakeOperation(";"));
     }
     CheckLexeme(";");
     Next();
+    int pos_e2 = GetLastFree() + 1;
     if (GetLex() == ";") {
-
+        poliz_.push_back(MakeOperand("true", lexemes_[ind1].GetNum()));
     }
     else {
         Expression();
     }
     CheckLexeme(";");
     Next();
+    poliz_.push_back({});
+    int pos_condition_goto = GetLastFree();
+    poliz_.push_back({});
+    int pos_goto_1 = GetLastFree();
+    int pos_e3 = GetLastFree() + 1;
     if (GetLex() == ")") {
 
     }
     else {
         Expression();
+        poliz_.push_back(MakeOperation(";"));
     }
+    poliz_.push_back(MakeGoTo(pos_e2));
     CheckLexeme(")");
     Next();
+    int pos_s = GetLastFree() + 1;
     CompoundOperator();
+    poliz_.push_back(MakeGoTo(pos_e3));
+    poliz_[pos_goto_1] = MakeGoTo(pos_s);
+    poliz_[pos_condition_goto] = MakeConditionGoTo(GetLastFree() + 1);
 }
 
-void SyntaxAnalyzator::WhileOperator() {
+void Poliz::WhileOperator() {
     CheckLexeme("while");
     Next();
     CheckLexeme("(");
     Next();
+    int pos_start_expression = GetLastFree() + 1;
     Expression();
+    poliz_.push_back({});
+    int pos_goto = GetLastFree();
     CheckLexeme(")");
     Next();
     CompoundOperator();
+    poliz_.push_back(MakeGoTo(pos_start_expression));
+    poliz_[pos_goto] = MakeConditionGoTo(GetLastFree() + 1);
 }
 
-void SyntaxAnalyzator::CycleOperator() {
+void Poliz::CycleOperator() {
     if (GetLex() == "for") {
         ForOperator();
     }
@@ -683,7 +741,7 @@ void SyntaxAnalyzator::CycleOperator() {
     }
 }
 
-void SyntaxAnalyzator::Operator() {
+void Poliz::Operator() {
     auto lex = GetLex();
     if (lex == "for" || lex == "while") {
         CycleOperator();
@@ -704,45 +762,45 @@ void SyntaxAnalyzator::Operator() {
         DefinitionOperator();
     }
     else if (!lex.empty() && (lex == "+" || lex == "-" ||
-        lex >= "0" && lex <= "9" || lex == "true" || lex == "false" ||
+        GetType() == 3 || lex == "true" || lex == "false" ||
         lex == "!" || lex == "++" || lex == "--" || lex == "(" || lex == "array")) {
         ExpressionOperator();
     }
     else if (GetType() == 2) {
         Next();
-        if (ind >= lexemes_.size()) {
-            --ind;
+        if (ind1 >= lexemes_.size()) {
+            --ind1;
             ExpressionOperator();
         }
         else if (GetLex() == "(") {
-            --ind;
+            --ind1;
             FunctionCallOperator();
         }
         else {
-            --ind;
+            --ind1;
             ExpressionOperator();
         }
     }
 }
 
-bool SyntaxAnalyzator::CheckOperator() {
+bool Poliz::CheckOperator() {
     auto lex = GetLex();
     return GetType() == 2 || !lex.empty() && (lex == "+" || lex == "-" ||
-        lex >= "0" && lex <= "9" || lex == "true" || lex == "false" ||
-        lex == "!" || lex == "++" || lex == "--"  || lex == "_" || lex == "(" || 
-        lex == "array" || lex == "for" || lex == "while" || lex == "int" || 
+        GetType() == 3 || lex == "true" || lex == "false" ||
+        lex == "!" || lex == "++" || lex == "--" || lex == "_" || lex == "(" ||
+        lex == "array" || lex == "for" || lex == "while" || lex == "int" ||
         lex == "double" || lex == "bool" ||
         lex == "return" || lex == "in" || lex == "out" || lex == "if");
 }
 
-void SyntaxAnalyzator::CompoundOperatorParameters() {
+void Poliz::CompoundOperatorParameters() {
     if (CheckOperator()) {
         Operator();
         CompoundOperatorParameters();
     }
 }
 
-void SyntaxAnalyzator::CompoundOperator() {
+void Poliz::CompoundOperator() {
     CheckLexeme("{");
     Next();
     CompoundOperatorParameters();
@@ -750,7 +808,7 @@ void SyntaxAnalyzator::CompoundOperator() {
     Next();
 }
 
-void SyntaxAnalyzator::ProgramParameters() {
+void Poliz::ProgramParameters() {
     if (GetLex() == "void") {
         Function();
         ProgramParameters();
@@ -762,33 +820,26 @@ void SyntaxAnalyzator::ProgramParameters() {
         }
         else {
             if (GetLex() == "int") {
-                ++ind;
+                ++ind1;
                 if (GetLex() == "main") {
                     return;
                 }
-                --ind;
+                --ind1;
             }
-            Type();
-            Name();
-            --ind;
-            if (GetLex() == "main") {
-                --ind;
-                CheckLexeme("int");
-                ++ind;
-            }
-            ++ind;
+            Next();
+            Next();
 
             if (GetLex() == "(") {
-                ind -= 2;
+                ind1 -= 2;
                 Function();
                 ProgramParameters();
             }
             else if (GetLex() == "[" || GetLex() == "," || GetLex() == ";" || GetLex() == "=") {
                 if (GetLex() == "[") {
-                    ind -= 3;
+                    ind1 -= 3;
                 }
                 else {
-                    ind -= 2;
+                    ind1 -= 2;
                 }
                 Definition();
                 CheckLexeme(";");
@@ -799,45 +850,21 @@ void SyntaxAnalyzator::ProgramParameters() {
     }
 }
 
-void SyntaxAnalyzator::Program() {
+void Poliz::Program() {
     ProgramParameters();
     if (GetLex() == "main") {
+        poliz_.push_back(MakeOperand(std::string("main"), lexemes_[ind1].GetNum()));
         Next();
         CheckLexeme("(");
         Next();
         CheckLexeme(")");
         Next();
         CompoundOperator();
-    }
-    else {
-        std::string str = "There is no \"main\" function!";
-        str += " Line: ";
-        str += GetNum();
-        throw str;
+        poliz_.push_back(MakeOperand(std::string("end_main"), lexemes_[ind1 - 1].GetNum()));
     }
 }
 
-bool SyntaxAnalyzator::Check() {
-    ind = 0;
-    try {
-        if (lexemes_.empty()) {
-            std::string error = "Empty program!";
-            throw error;
-        }
-        else {
-            Program();
-            if (ind != lexemes_.size()) {
-                std::string error = "Extra symbols: ";
-                error += GetLex();
-                error += " Line: ";
-                error += GetNum();
-                throw error;
-            }
-        }
-    }
-    catch (std::string str) {
-        std::cout << "ERROR: " << str << '\n';
-        return false;
-    }
-    return true;
+void Poliz::MakePoliz() {
+    ind1 = 0;
+    Program();
 }

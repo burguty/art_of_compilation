@@ -1,5 +1,4 @@
 #include "Compilator.h"
-#include <iostream>
 
 int main() {
     Compilator compilator;

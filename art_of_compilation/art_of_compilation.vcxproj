@@ -143,6 +143,7 @@
     <ClCompile Include="Lexeme.cpp" />
     <ClCompile Include="LexicalAnalyzator.cpp" />
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="Poliz.cpp" />
     <ClCompile Include="SemanticsAnalyzator.cpp" />
     <ClCompile Include="SyntaxAnalyzator.cpp" />
   </ItemGroup>
@@ -150,6 +151,7 @@
     <ClInclude Include="Compilator.h" />
     <ClInclude Include="Lexeme.h" />
     <ClInclude Include="LexicalAnalyzator.h" />
+    <ClInclude Include="Poliz.h" />
     <ClInclude Include="SemanticsAnalyzator.h" />
     <ClInclude Include="SyntaxAnalyzator.h" />
   </ItemGroup>

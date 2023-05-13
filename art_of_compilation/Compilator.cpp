@@ -11,6 +11,15 @@ bool Compilator::Check() {
     }
     syntax_analyzator_.SetLexemes(lexemes);
     semantics_analyzator_.SetLexemes(lexemes);
+    poliz_.SetLexemes(lexemes);
     if (syntax_analyzator_.Check() == false) return false;
-    return semantics_analyzator_.Check();
+    if (semantics_analyzator_.Check() == false) return false;
+    
+    poliz_.MakePoliz();
+    auto poliz = poliz_.GetPoliz();
+    for (int i = 0; i < poliz.size(); ++i) {
+        element e = poliz[i];
+        std::cout << i << ' ' << e.text << ' ' << e.is_oper << ' ' << e.goto_index << ' ' << e.line << '\n';
+    }
+    return true;
 }
